@@ -8,6 +8,7 @@ defaults:
   TEMPLATE(table,keyvalue)
   TEMPLATE(keycount,500000000000)  # Define the key count variable
   TEMPLATE(clusteringcount,1000000)  # Define the clustering key count variable
+  TEMPLATE(memtableclass,TrieMemtable)
 
 scenarios:
   default:
@@ -44,7 +45,7 @@ blocks:
           value text,
           PRIMARY KEY (partition_key, clustering_key)
           )
-          WITH memtable = {'class': 'TrieMemtable'};
+          WITH memtable = {'class': 'TEMPLATE(memtableclass)'};
   schema_astra:
     ops:
       create_table:
