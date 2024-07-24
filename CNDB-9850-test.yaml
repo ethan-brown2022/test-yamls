@@ -55,7 +55,8 @@ blocks:
           clustering_key text,
           value text,
           PRIMARY KEY (partition_key, clustering_key)
-          );
+          )
+          WITH memtable = {'class': 'TEMPLATE(memtableclass)'};
   rampup:
     params:
       cl: TEMPLATE(write_cl,LOCAL_QUORUM)
