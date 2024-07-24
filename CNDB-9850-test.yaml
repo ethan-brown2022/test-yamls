@@ -1,0 +1,91 @@
+description: |
+  A workload with only text keys and text values.
+  This workload is rather simple but it is useful for demonstration purposes.
+  If you want a more thorough example, you might be interested in the
+  baselinesv2/cql-* workloads.
+defaults:
+  TEMPLATE(keyspace,baselines)
+  TEMPLATE(table,keyvalue)
+  TEMPLATE(keycount,500000000000)  # Define the key count variable
+  TEMPLATE(clusteringcount,1000000)  # Define the clustering key count variable
+
+scenarios:
+  default:
+    schema: run driver=cql tags==block:schema threads==1 cycles==UNDEF
+    rampup: run driver=cql tags==block:rampup cycles===TEMPLATE(rampup-cycles,10000000) threads=auto
+    main: run driver=cql tags=='block:main-.*' cycles===TEMPLATE(main-cycles,10000000) threads=auto
+  astra:
+    schema: run driver=cql tags==block:schema_astra threads==1 cycles==UNDEF
+    rampup: run driver=cql tags==block:rampup cycles===TEMPLATE(rampup-cycles,10000000) threads=auto
+    main: run driver=cql tags=='block:main-.*' cycles===TEMPLATE(main-cycles,10000000) threads=auto
+  basic_check:
+    schema: run driver=cql tags==block:schema threads==1 cycles==UNDEF
+    rampup: run driver=cql tags==block:rampup cycles===TEMPLATE(rampup-cycles,10) threads=auto
+    main: run driver=cql tags=='block:main-.*' cycles===TEMPLATE(main-cycles,10) threads=auto
+
+bindings:
+  partition_key: Mod(<<keycount:TEMPLATE(keycount)>>); ToString() -> String
+  clustering_key: Mod(<<clusteringcount:TEMPLATE(clusteringcount)>>); ToString() -> String
+  value: Hash(); Mod(<<valuecount:TEMPLATE(keycount)>>); ToString() -> String
+
+blocks:
+  schema:
+    ops:
+      create_keyspace:
+        raw: |
+          create keyspace if not exists TEMPLATE(keyspace,baselines)
+          WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 'TEMPLATE(rf,1)'}
+          AND durable_writes = true;
+      create_table:
+        raw: |
+          create table if not exists TEMPLATE(keyspace,baselines).TEMPLATE(table,keyvalue) (
+          partition_key text,
+          clustering_key text,
+          value text,
+          PRIMARY KEY (partition_key, clustering_key)
+          )
+          WITH memtable = {'class': 'TrieMemtable'};
+  schema_astra:
+    ops:
+      create_table:
+        raw: |
+          create table if not exists TEMPLATE(keyspace,baselines).TEMPLATE(table,keyvalue) (
+          partition_key text,
+          clustering_key text,
+          value text,
+          PRIMARY KEY (partition_key, clustering_key)
+          );
+  rampup:
+    params:
+      cl: TEMPLATE(write_cl,LOCAL_QUORUM)
+    ops:
+      rampup_insert:
+        prepared: |
+          insert into TEMPLATE(keyspace,baselines).TEMPLATE(table,keyvalue)
+          (partition_key, clustering_key, value)
+          values ({partition_key},{clustering_key},{value});
+  #  verify:
+  #    params:
+  #      cl: <<read_cl:LOCAL_QUORUM>>
+  #    ops:
+  #      verify_select:
+  #        prepared: |
+  #          select * from <<keyspace:baselines>>.<<table:keyvalue>> where partition_key={partition_key};
+  #        verify-fields: partition_key->partition_key, clustering_key->clustering_key, value->value
+  main_read:
+    params:
+      ratio: 5
+      cl: TEMPLATE(read_cl,LOCAL_QUORUM)
+    ops:
+      main_select:
+        prepared: |
+          select * from TEMPLATE(keyspace,baselines).TEMPLATE(table,keyvalue) where partition_key={partition_key} and clustering_key={clustering_key};
+  main_write:
+    params:
+      ratio: 5
+      cl: TEMPLATE(write_cl,LOCAL_QUORUM)
+    ops:
+      main_insert:
+        prepared: |
+          insert into TEMPLATE(keyspace,baselines).TEMPLATE(table,keyvalue)
+          (partition_key, clustering_key, value) values ({partition_key}, {clustering_key}, {value});
