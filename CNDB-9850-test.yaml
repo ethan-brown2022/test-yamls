@@ -3,12 +3,12 @@ description: |
   This workload is rather simple but it is useful for demonstration purposes.
   If you want a more thorough example, you might be interested in the
   baselinesv2/cql-* workloads.
-defaults:
-  TEMPLATE(keyspace,baselines)
-  TEMPLATE(table,keyvalue)
-  TEMPLATE(keycount,500000000000)  # Define the key count variable
-  TEMPLATE(clusteringcount,1000000)  # Define the clustering key count variable
-  TEMPLATE(memtableclass,TrieMemtable)
+  defaults:
+    TEMPLATE(keyspace,baselines)
+    TEMPLATE(table,keyvalue)
+    TEMPLATE(keycount,500000000000)
+    TEMPLATE(clusteringcount,1000000)
+    TEMPLATE(memtableclass,TrieMemtable)
 
 scenarios:
   default:
